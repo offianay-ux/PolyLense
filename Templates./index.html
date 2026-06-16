@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PolicyLens</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; font-family: 'DM Sans', sans-serif; overflow: hidden; background: #1a1a3a; }
+    .app { display: flex; width: 100vw; height: 100vh; }
+
+    .sidebar { width: 248px; flex-shrink: 0; background: linear-gradient(160deg, #2a2560 0%, #312d70 40%, #2e2a68 70%, #252060 100%); display: flex; flex-direction: column; padding: 28px 18px 24px; gap: 0; }
+    .logo { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; }
+    .logo-policy { color: #fff; }
+    .logo-lens { color: #7c6ff5; }
+    .logo-sub { font-size: 11.5px; color: rgba(200,190,255,0.5); margin-top: 5px; font-weight: 400; }
+
+    .paste-zone { margin-top: 24px; border: 1.5px dashed rgba(100,80,200,0.4); border-radius: 16px; padding: 12px; background: rgba(120,100,220,0.1); }
+    .paste-zone textarea { width: 100%; height: 120px; background: transparent; border: none; outline: none; color: #e0e0ff; font-size: 12px; font-family: 'DM Sans', sans-serif; resize: none; }
+    .paste-zone textarea::placeholder { color: rgba(180,170,240,0.4); font-style: italic; }
+    .analyse-btn { width: 100%; margin-top: 10px; padding: 11px; border-radius: 12px; background: linear-gradient(135deg, #5b4fd4, #8b6ff5); border: none; color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.18s; }
+    .analyse-btn:hover { box-shadow: 0 4px 20px rgba(100,80,220,0.5); transform: translateY(-1px); }
+    .analyse-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    .pulse-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: rgba(200,190,255,0.45); margin-top: 24px; margin-bottom: 10px; }
+    .pulse-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .pulse-card { background: #c8c6d4; border: none; border-radius: 16px; padding: 20px 8px 14px; text-align: center; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: all 0.18s; box-shadow: 0 4px 16px rgba(0,0,0,0.18); }
+    .pulse-card:hover { background: #d4d2e0; transform: translateY(-2px); }
+    .pulse-card.active { background: #bfbdd0; border: 2px solid rgba(124,111,245,0.5); }
+    .pulse-card-icon { font-size: 32px; filter: drop-shadow(0 0 8px rgba(120,100,255,0.7)) drop-shadow(0 0 16px rgba(100,80,220,0.5)); transition: filter 0.2s; }
+    .pulse-card:hover .pulse-card-icon { filter: drop-shadow(0 0 14px rgba(140,120,255,1)) drop-shadow(0 0 28px rgba(120,100,240,0.8)); }
+    .pulse-card-label { font-size: 12px; font-weight: 700; color: #1e1a3a; }
+    .pulse-card.active .pulse-card-label { color: #5b4fd4; }
+
+    .chat-tile { margin-top: 8px; background: linear-gradient(135deg, #5b4fd4, #8b6ff5); border-radius: 14px; padding: 13px 16px; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; transition: all 0.18s; box-shadow: 0 4px 20px rgba(100,80,220,0.4); }
+    .chat-tile:hover { box-shadow: 0 6px 28px rgba(100,80,220,0.55); transform: translateY(-1px); }
+    .chat-tile.active { box-shadow: 0 6px 28px rgba(100,80,220,0.6); }
+    .chat-tile-label { font-size: 14px; font-weight: 700; color: #fff; }
+
+    .sidebar-bottom { margin-top: auto; display: flex; align-items: center; gap: 10px; padding: 8px 4px; }
+    .user-avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, #5b4fd4, #8b6ff5); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .user-name { font-size: 13px; font-weight: 600; color: #e0e0ff; }
+    .user-sub { font-size: 11px; color: rgba(180,170,230,0.5); }
+
+    .main { flex: 1; background: linear-gradient(160deg, #d8c8f0 0%, #ccc8ec 25%, #c8d0f0 55%, #b8cce8 100%); display: flex; flex-direction: column; overflow: hidden; }
+    .topbar { padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(180,160,240,0.2); background: rgba(255,255,255,0.2); backdrop-filter: blur(20px); flex-shrink: 0; }
+    .topbar-title { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: rgba(60,50,100,0.65); }
+    .back-btn { font-size: 12px; font-weight: 600; color: #5b4fd4; cursor: pointer; padding: 6px 14px; border: 1px solid rgba(91,79,212,0.3); border-radius: 20px; background: rgba(91,79,212,0.08); display: none; }
+    .back-btn.show { display: block; }
+
+    .view { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .view.active { display: flex; }
+
+    /* CHAT */
+    .chat-area { flex: 1; padding: 28px 32px; display: flex; flex-direction: column; gap: 22px; overflow-y: auto; }
+    .chat-area::-webkit-scrollbar { width: 4px; }
+    .chat-area::-webkit-scrollbar-thumb { background: rgba(140,120,220,0.2); border-radius: 4px; }
+    .chat-welcome { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 40px 32px 24px; gap: 12px; }
+    .welcome-icon { font-size: 40px; filter: drop-shadow(0 0 12px rgba(91,79,212,0.5)); }
+    .welcome-title { font-size: 18px; font-weight: 700; color: rgba(30,25,60,0.85); }
+    .welcome-sub { font-size: 13px; color: rgba(80,70,140,0.55); line-height: 1.6; max-width: 480px; }
+    .welcome-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 8px; }
+    .welcome-chip { background: rgba(91,79,212,0.08); border: 1px solid rgba(91,79,212,0.2); border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 600; color: #5b4fd4; cursor: pointer; transition: all 0.18s; }
+    .welcome-chip:hover { background: rgba(91,79,212,0.15); }
+
+    .msg { display: flex; gap: 12px; align-items: flex-start; }
+    .msg.user { flex-direction: row-reverse; }
+    .ai-badge { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.9); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: #5b4fd4; }
+    .user-badge { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg, #5b4fd4, #8b6ff5); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff; }
+    .bubble { background: rgba(255,255,255,0.75); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.9); border-radius: 20px; padding: 14px 18px; font-size: 14px; color: rgba(30,25,60,0.85); line-height: 1.65; max-width: 680px; box-shadow: 0 4px 20px rgba(140,120,220,0.08); }
+    .bubble.user-bubble { background: rgba(255,255,255,0.8); font-size: 13.5px; }
+    .msg-time { font-size: 11px; color: rgba(100,85,160,0.38); margin-top: 5px; }
+    .msg.user .msg-time { text-align: right; }
+    .source-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .source-chip { font-size: 11.5px; font-weight: 600; color: #5b4fd4; background: rgba(91,79,212,0.08); border: 1px solid rgba(91,79,212,0.2); padding: 5px 12px; border-radius: 20px; cursor: pointer; }
+
+    .typing { display: none; align-items: center; gap: 5px; padding: 12px 16px; background: rgba(255,255,255,0.75); border-radius: 20px; width: fit-content; }
+    .typing.show { display: flex; }
+    .typing span { width: 7px; height: 7px; border-radius: 50%; background: #5b4fd4; animation: bounce 1.2s infinite; }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+
+    .input-bar { padding: 14px 28px; border-top: 1px solid rgba(180,160,240,0.15); background: rgba(255,255,255,0.25); backdrop-filter: blur(20px); display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+    .inp { flex: 1; background: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.9); border-radius: 28px; padding: 13px 22px; font-family: 'DM Sans', sans-serif; font-size: 14px; color: rgba(30,25,60,0.85); outline: none; }
+    .inp::placeholder { color: rgba(100,85,160,0.38); }
+    .inp-btn { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; transition: all 0.18s; }
+    .inp-btn.send { background: linear-gradient(135deg, #5b4fd4, #8b6ff5); border: none; color: #fff; box-shadow: 0 4px 16px rgba(91,79,212,0.4); }
+    .inp-btn.send:hover { box-shadow: 0 6px 24px rgba(91,79,212,0.55); transform: translateY(-1px); }
+
+    /* PULSE DETAIL VIEWS */
+    .pulse-view { flex: 1; padding: 24px 32px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+    .pulse-view::-webkit-scrollbar { width: 4px; }
+    .pv-header { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+    .pv-icon { font-size: 36px; }
+    .pv-title { font-size: 22px; font-weight: 700; color: rgba(30,25,60,0.9); }
+    .pv-sub { font-size: 12px; color: rgba(100,85,160,0.5); margin-top: 3px; }
+
+    /* empty state */
+    .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 40px; }
+    .empty-icon { font-size: 48px; opacity: 0.3; }
+    .empty-title { font-size: 16px; font-weight: 700; color: rgba(60,50,100,0.4); }
+    .empty-sub { font-size: 13px; color: rgba(80,70,140,0.35); }
+
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .info-card { background: rgba(255,255,255,0.68); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.9); border-radius: 18px; padding: 16px 18px; box-shadow: 0 4px 16px rgba(140,120,220,0.08); transition: transform 0.18s; }
+    .info-card:hover { transform: translateY(-2px); }
+    .i-lbl { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: rgba(91,79,212,0.6); margin-bottom: 6px; }
+    .i-val { font-size: 13px; color: rgba(30,25,60,0.82); line-height: 1.6; }
+    .i-val.bad { color: #c0304a; font-weight: 700; }
+    .i-val.good { color: #1a7a50; }
+    .badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-top: 8px; text-transform: uppercase; }
+    .b-red { background: rgba(192,48,74,0.1); color: #c0304a; border: 1px solid rgba(192,48,74,0.22); }
+    .b-yellow { background: rgba(180,120,0,0.1); color: #906000; border: 1px solid rgba(180,120,0,0.22); }
+    .b-green { background: rgba(20,160,90,0.1); color: #1a7a50; border: 1px solid rgba(20,160,90,0.22); }
+
+    /* flags */
+    .flags-bubble { background: rgba(255,235,238,0.8); border: 1px solid rgba(220,80,100,0.22); border-radius: 20px; padding: 16px 18px; box-shadow: 0 4px 20px rgba(200,60,80,0.08); }
+    .flags-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .flags-ttl { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; color: #c0304a; }
+    .flag-row { font-size: 13px; font-weight: 700; color: #c0304a; padding: 5px 0; display: flex; gap: 8px; border-bottom: 1px solid rgba(220,80,100,0.12); line-height: 1.5; }
+    .flag-row:last-child { border-bottom: none; }
+
+    .pv-input-bar { padding: 14px 32px; border-top: 1px solid rgba(180,160,240,0.15); background: rgba(255,255,255,0.25); display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+
+    /* loading spinner */
+    .spinner { width: 36px; height: 36px; border: 3px solid rgba(91,79,212,0.2); border-top-color: #5b4fd4; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-state { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px; }
+    .loading-state p { font-size: 13px; color: rgba(80,70,140,0.55); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div class="sidebar">
+    <div>
+      <div class="logo"><span class="logo-policy">POLICY</span><span class="logo-lens">LENS</span></div>
+      <div class="logo-sub">Understand before you agree.</div>
+    </div>
+
+    <div class="paste-zone">
+      <textarea id="tctext" placeholder="Paste your T&C or policy text here..."></textarea>
+      <button class="analyse-btn" id="analyseBtn" onclick="analyse()">🔍 Analyse Document</button>
+    </div>
+
+    <div class="pulse-label">Policy Pulse</div>
+    <div class="pulse-grid">
+      <div class="pulse-card" id="card-privacy" onclick="showView('privacy')"><div class="pulse-card-icon">🛡️</div><div class="pulse-card-label">Data Privacy</div></div>
+      <div class="pulse-card" id="card-rights" onclick="showView('rights')"><div class="pulse-card-icon">⚖️</div><div class="pulse-card-label">Your Rights</div></div>
+      <div class="pulse-card" id="card-account" onclick="showView('account')"><div class="pulse-card-icon">🚪</div><div class="pulse-card-label">Account</div></div>
+      <div class="pulse-card" id="card-changes" onclick="showView('changes')"><div class="pulse-card-icon">⚠️</div><div class="pulse-card-label">Changes</div></div>
+    </div>
+
+    <div class="chat-tile active" id="card-chat" onclick="showView('chat')">
+      <div style="font-size:18px;">💬</div>
+      <div class="chat-tile-label">Chat</div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="user-avatar">A</div>
+      <div>
+        <div class="user-name">Anay</div>
+        <div class="user-sub">built with 💙</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title" id="header-title">PolicyLens</span>
+      <span class="back-btn" id="back-btn" onclick="showView('chat')">← Back</span>
+    </div>
+
+    <!-- CHAT -->
+    <div class="view active" id="view-chat">
+      <div class="chat-area" id="chatArea">
+        <div class="chat-welcome" id="chatWelcome">
+          <div class="welcome-icon">💬</div>
+          <div class="welcome-title">Ask anything about this document</div>
+          <div class="welcome-sub">Paste your T&C on the left and click Analyse. Then ask anything.</div>
+          <div class="welcome-chips">
+            <div class="welcome-chip" onclick="fillInput('Can they delete my account without warning?')">Can they delete my account?</div>
+            <div class="welcome-chip" onclick="fillInput('What data do they collect about me?')">What data do they collect?</div>
+            <div class="welcome-chip" onclick="fillInput('Can they change the terms without telling me?')">Can terms change without notice?</div>
+            <div class="welcome-chip" onclick="fillInput('Do I have the right to delete my data?')">Can I delete my data?</div>
+          </div>
+        </div>
+        <div class="msg" id="typingMsg" style="display:none;">
+          <div class="ai-badge">AI</div>
+          <div class="typing show"><span></span><span></span><span></span></div>
+        </div>
+      </div>
+      <div class="input-bar">
+        <input class="inp" id="chatInput" placeholder="Ask anything about this document..." onkeydown="if(event.key==='Enter') sendMessage()"/>
+        <div class="inp-btn send" onclick="sendMessage()"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg></div>
+      </div>
+    </div>
+
+    <!-- DATA PRIVACY -->
+    <div class="view" id="view-privacy">
+      <div class="pulse-view" id="privacy-content">
+        <div class="pv-header">
+          <div class="pv-icon">🛡️</div>
+          <div><div class="pv-title">Data Privacy</div><div class="pv-sub">What they know about you</div></div>
+        </div>
+        <div class="empty-state" id="privacy-empty">
+          <div class="empty-icon">🛡️</div>
+          <div class="empty-title">No document analysed yet</div>
+          <div class="empty-sub">Paste your T&C and click Analyse to see privacy insights</div>
+        </div>
+        <div id="privacy-data" style="display:none;">
+          <div class="flags-bubble" id="flags-card" style="display:none; margin-bottom:16px;">
+            <div class="flags-head"><span style="color:#c0304a; font-size:14px;">⚑</span><span class="flags-ttl">Flags Detected</span></div>
+            <div id="flags-list"></div>
+          </div>
+          <div class="info-grid" id="privacy-grid"></div>
+        </div>
+      </div>
+      <div class="pv-input-bar">
+        <input class="inp" placeholder="Ask about data privacy..." onkeydown="if(event.key==='Enter'){fillInput(this.value);showView('chat');sendMessage();}"/>
+        <div class="inp-btn send" onclick="showView('chat');sendMessage()"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg></div>
+      </div>
+    </div>
+
+    <!-- YOUR RIGHTS -->
+    <div class="view" id="view-rights">
+      <div class="pulse-view">
+        <div class="pv-header">
+          <div class="pv-icon">⚖️</div>
+          <div><div class="pv-title">Your Rights</div><div class="pv-sub">What you're entitled to</div></div>
+        </div>
+        <div class="empty-state" id="rights-empty">
+          <div class="empty-icon">⚖️</div>
+          <div class="empty-title">No document analysed yet</div>
+          <div class="empty-sub">Paste your T&C and click Analyse to see your rights</div>
+        </div>
+        <div class="info-grid" id="rights-grid" style="display:none;"></div>
+      </div>
+      <div class="pv-input-bar">
+        <input class="inp" placeholder="Ask about your rights..." onkeydown="if(event.key==='Enter'){fillInput(this.value);showView('chat');sendMessage();}"/>
+        <div class="inp-btn send" onclick="showView('chat');sendMessage()"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg></div>
+      </div>
+    </div>
+
+    <!-- ACCOUNT -->
+    <div class="view" id="view-account">
+      <div class="pulse-view">
+        <div class="pv-header">
+          <div class="pv-icon">🚪</div>
+          <div><div class="pv-title">Account</div><div class="pv-sub">Termination & suspension rules</div></div>
+        </div>
+        <div class="empty-state" id="account-empty">
+          <div class="empty-icon">🚪</div>
+          <div class="empty-title">No document analysed yet</div>
+          <div class="empty-sub">Paste your T&C and click Analyse to see account rules</div>
+        </div>
+        <div class="info-grid" id="account-grid" style="display:none;"></div>
+      </div>
+      <div class="pv-input-bar">
+        <input class="inp" placeholder="Ask about your account..." onkeydown="if(event.key==='Enter'){fillInput(this.value);showView('chat');sendMessage();}"/>
+        <div class="inp-btn send" onclick="showView('chat');sendMessage()"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg></div>
+      </div>
+    </div>
+
+    <!-- CHANGES -->
+    <div class="view" id="view-changes">
+      <div class="pulse-view">
+        <div class="pv-header">
+          <div class="pv-icon">⚠️</div>
+          <div><div class="pv-title">Changes</div><div class="pv-sub">How they update their terms</div></div>
+        </div>
+        <div class="empty-state" id="changes-empty">
+          <div class="empty-icon">⚠️</div>
+          <div class="empty-title">No document analysed yet</div>
+          <div class="empty-sub">Paste your T&C and click Analyse to see change policies</div>
+        </div>
+        <div class="info-grid" id="changes-grid" style="display:none;"></div>
+      </div>
+      <div class="pv-input-bar">
+        <input class="inp" placeholder="Ask about policy changes..." onkeydown="if(event.key==='Enter'){fillInput(this.value);showView('chat');sendMessage();}"/>
+        <div class="inp-btn send" onclick="showView('chat');sendMessage()"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let analysed = false;
+
+  const privacyKeys = {
+    data_collected: ['Data Collected', 'b-red'],
+    shared_with: ['Shared With', 'b-red'],
+    data_retention: ['Data Retention', 'b-yellow'],
+    ai_training: ['AI Training', 'b-red'],
+    opt_out: ['Opt-Out Options', 'b-green'],
+    third_party: ['Third Party Access', 'b-yellow']
+  };
+  const rightsKeys = {
+    right_to_access: ['Right to Access', 'b-green'],
+    right_to_delete: ['Right to Delete', 'b-yellow'],
+    right_to_correct: ['Right to Correct', 'b-green'],
+    right_to_object: ['Right to Object', 'b-red'],
+    arbitration: ['Arbitration', 'b-red'],
+    gdpr_ccpa: ['GDPR / CCPA', 'b-green']
+  };
+  const accountKeys = {
+    termination: ['Termination', 'b-red'],
+    grace_period: ['Grace Period', 'b-yellow'],
+    data_after_deletion: ['Data After Deletion', 'b-yellow'],
+    refunds: ['Refunds', 'b-red'],
+    self_deletion: ['Self-Deletion', 'b-green'],
+    transfer: ['Transfer', 'b-yellow']
+  };
+  const changesKeys = {
+    can_they_change: ['Can They Change?', 'b-red'],
+    notification: ['Notification', 'b-yellow'],
+    auto_acceptance: ['Auto-Acceptance', 'b-red'],
+    notice_period: ['Notice Period', 'b-yellow'],
+    your_option: ['Your Option', 'b-green'],
+    retroactive: ['Retroactive', 'b-red']
+  };
+
+  function buildGrid(gridId, data, keys) {
+    const grid = document.getElementById(gridId);
+    grid.innerHTML = '';
+    for (const [key, [label, badge]] of Object.entries(keys)) {
+      const val = data[key] || 'Not mentioned in document';
+      const isBad = val.startsWith('⚠️');
+      const cleanVal = val.replace('⚠️', '').trim();
+      grid.innerHTML += `
+        <div class="info-card">
+          <div class="i-lbl">${label}</div>
+          <div class="i-val ${isBad ? 'bad' : ''}">${cleanVal}</div>
+          <span class="badge ${badge}">${label.toUpperCase()}</span>
+        </div>`;
+    }
+    grid.style.display = 'grid';
+  }
+
+  async function analyse() {
+    const text = document.getElementById('tctext').value.trim();
+    if (!text) { alert('Please paste some text first!'); return; }
+
+    const btn = document.getElementById('analyseBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ Analysing...';
+
+    // show loading in all views
+    ['privacy-empty','rights-empty','account-empty','changes-empty'].forEach(id => {
+      const el = document.getElementById(id);
+      el.innerHTML = `<div class="loading-state"><div class="spinner"></div><p>Analysing document...</p></div>`;
+    });
+
+    try {
+      // upload to chroma
+      await fetch('/upload', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text})
+      });
+
+      // summarise
+      const res = await fetch('/summarise', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text})
+      });
+      const data = await res.json();
+
+      // fill privacy
+      document.getElementById('privacy-empty').style.display = 'none';
+      document.getElementById('privacy-data').style.display = 'block';
+      buildGrid('privacy-grid', data.privacy || {}, privacyKeys);
+
+      // fill flags
+      if (data.flags && data.flags.length) {
+        const flagsList = document.getElementById('flags-list');
+        flagsList.innerHTML = data.flags.map(f => `<div class="flag-row"><span style="color:#c0304a; flex-shrink:0;">•</span>${f}</div>`).join('');
+        document.getElementById('flags-card').style.display = 'block';
+      }
+
+      // fill rights
+      document.getElementById('rights-empty').style.display = 'none';
+      buildGrid('rights-grid', data.rights || {}, rightsKeys);
+
+      // fill account
+      document.getElementById('account-empty').style.display = 'none';
+      buildGrid('account-grid', data.account || {}, accountKeys);
+
+      // fill changes
+      document.getElementById('changes-empty').style.display = 'none';
+      buildGrid('changes-grid', data.changes || {}, changesKeys);
+
+      analysed = true;
+      btn.textContent = '✅ Analysed!';
+      btn.style.background = 'linear-gradient(135deg, #1a7a50, #2ecc80)';
+
+      // add welcome message to chat
+      document.getElementById('chatWelcome').innerHTML = `
+        <div class="welcome-icon">✅</div>
+        <div class="welcome-title">Document analysed!</div>
+        <div class="welcome-sub">Check the Policy Pulse cards or ask me anything below.</div>
+        <div class="welcome-chips">
+          <div class="welcome-chip" onclick="fillInput('What are the biggest risks in this document?')">Biggest risks?</div>
+          <div class="welcome-chip" onclick="fillInput('Can they delete my account without warning?')">Can they delete my account?</div>
+          <div class="welcome-chip" onclick="fillInput('What data do they collect about me?')">What data do they collect?</div>
+          <div class="welcome-chip" onclick="fillInput('Do I have the right to delete my data?')">Can I delete my data?</div>
+        </div>`;
+
+    } catch(e) {
+      btn.textContent = '❌ Error. Try again.';
+      btn.disabled = false;
+    }
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const question = input.value.trim();
+    if (!question) return;
+    if (!analysed) { alert('Please paste and analyse a document first!'); return; }
+
+    input.value = '';
+    const chatArea = document.getElementById('chatArea');
+
+    chatArea.insertAdjacentHTML('beforeend', `
+      <div class="msg user">
+        <div class="user-badge">A</div>
+        <div>
+          <div class="bubble user-bubble">${question}</div>
+          <div class="msg-time">just now</div>
+        </div>
+      </div>`);
+
+    document.getElementById('typingMsg').style.display = 'flex';
+    chatArea.scrollTop = chatArea.scrollHeight;
+
+    try {
+      const res = await fetch('/ask', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({question})
+      });
+     const data = await res.json();
+document.getElementById('typingMsg').style.display = 'none';
+const answer = data.answer || data.error || "Sorry, couldn't get a response.";
+chatArea.insertAdjacentHTML('beforeend', `
+  <div class="msg">
+    <div class="ai-badge">AI</div>
+    <div>
+      <div class="bubble">${answer}</div>
+      <div class="msg-time">just now</div>
+    </div>
+  </div>`);
+    } catch(e) {
+      document.getElementById('typingMsg').style.display = 'none';
+      chatArea.insertAdjacentHTML('beforeend', `
+        <div class="msg">
+          <div class="ai-badge">AI</div>
+          <div><div class="bubble">Sorry, something went wrong. Try again.</div></div>
+        </div>`);
+    }
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  function fillInput(text) {
+    document.getElementById('chatInput').value = text;
+    document.getElementById('chatInput').focus();
+  }
+
+  function showView(name) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.pulse-card, .chat-tile').forEach(c => c.classList.remove('active'));
+    const titles = { chat: 'PolicyLens', privacy: '🛡️ Data Privacy', rights: '⚖️ Your Rights', account: '🚪 Account', changes: '⚠️ Changes' };
+    document.getElementById('view-' + name).classList.add('active');
+    document.getElementById('header-title').textContent = titles[name];
+    const backBtn = document.getElementById('back-btn');
+    if (name === 'chat') { backBtn.classList.remove('show'); document.getElementById('card-chat').classList.add('active'); }
+    else { backBtn.classList.add('show'); const card = document.getElementById('card-' + name); if(card) card.classList.add('active'); }
+  }
+  document.getElementById('card-chat').classList.add('active');
+</script>
+</body>
+</html>
